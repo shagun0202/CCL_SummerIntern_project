@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import joblib
 import os
+import base64
 from risk_engine import process_machine_data
 
 # Set page configuration for professional dark theme look
@@ -14,12 +15,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+def add_bg_from_local(image_file):
+    if os.path.exists(image_file):
+        with open(image_file, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read())
+        st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: linear-gradient(rgba(14, 17, 23, 0.8), rgba(14, 17, 23, 0.8)), url(data:image/png;base64,{encoded_string.decode()});
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+        )
+
+add_bg_from_local('assets/machine_bg.png')
+
 # Custom CSS for Industrial Styling
 st.markdown("""
 <style>
-    body { background-color: #0e1117; color: #fafafa; }
+    body { color: #fafafa; background-color: transparent !important; }
+    [data-testid="stAppViewContainer"] { background-color: transparent !important; }
+    [data-testid="stHeader"] { background-color: transparent !important; }
     .kpi-card {
-        background-color: #1e1e1e;
+        background-color: rgba(30, 30, 30, 0.85);
         border-left: 5px solid #4CAF50;
         border-radius: 5px;
         padding: 15px;
@@ -120,6 +144,33 @@ def main():
         
     df, is_model_loaded = load_ml_model(df)
     
+    # ---------------------------------------------------------
+    # Sidebar Filters
+    # ---------------------------------------------------------
+    st.sidebar.header("🔍 Filter Options")
+    
+    if 'Area Description' in df.columns:
+        areas = ["All"] + sorted([str(x) for x in df['Area Description'].dropna().unique()])
+        selected_area = st.sidebar.selectbox("Select Area", areas)
+        if selected_area != "All":
+            df = df[df['Area Description'].astype(str) == selected_area]
+            
+    if 'Type of Equipment' in df.columns:
+        names = ["All"] + sorted([str(x) for x in df['Type of Equipment'].dropna().unique()])
+        selected_name = st.sidebar.selectbox("Select Machine Name", names)
+        if selected_name != "All":
+            df = df[df['Type of Equipment'].astype(str) == selected_name]
+            
+    if 'CIL Number' in df.columns:
+        numbers = ["All"] + sorted([str(x) for x in df['CIL Number'].dropna().unique()])
+        selected_number = st.sidebar.selectbox("Select Machine Number", numbers)
+        if selected_number != "All":
+            df = df[df['CIL Number'].astype(str) == selected_number]
+            
+    if df.empty:
+        st.warning("No machines found matching the selected filters.")
+        return
+
     # ---------------------------------------------------------
     # KPIs Section
     # ---------------------------------------------------------
